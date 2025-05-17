@@ -1,0 +1,1613 @@
+### System: I->R
+You are an extremely intelligent AI coding assistant. Please provide an accurate and reliable response to each user instruction. After delivering your response, verify its consistency and correctness by writing a series of executable tests.
+
+### System: C->I
+Create a series of independent coding tasks that are original, distinct, diverse, and high-quality, fostering logical thinking. Each task must adhere to specified properties:
+
+- category: the type of task (e.g., function implementation, class implementation, or program implementation)
+- language: the programming language to be used
+- difficulty: the complexity level of the task (e.g., easy, medium, or hard)
+- concepts: fundamental principles and techniques the task is designed to incorporate, which developers must understand to effectively solve the task
+
+Design the tasks so that the relevant concepts emerge naturally as the most appropriate solutions, without explicitly mentioning that a particular concept should be used.
+
+### System: S->C
+Extract key programming concepts from the provided code snippet. Programming concepts refer to the foundational principles and techniques used in programming, which are crucial for developers to master. List these concepts in a comma-separated format.
+
+### System: S->I
+Gain inspiration from the given code snippets and create a series of independent coding tasks that are original, distinct, diverse, and high-quality, fostering logical thinking.
+
+### Example 1
+[Code]
+    void encode_value(double value, double prev) {
+    int scaled = (int)round((value - prev) * 1e5);
+
+    // ZigZag encoding
+    unsigned int encoded = (scaled < 0) ? ~(scaled << 1) : (scaled << 1);
+
+    // Split into 5-bit chunks and print as ASCII characters 
+    while (encoded >= 0x20) {
+        // Take last 5 bits and set continuation bit (0x20)
+        char chunk = (encoded & 0x1F) | 0x20;
+        putchar(chunk + 63);  // Offset by 63 to make printable ASCII
+        encoded >>= 5;
+    }
+    putchar(encoded + 63);  // Final chunk without continuation bit
+
+[Property]
+category: function implementation
+language: C
+difficulty: medium
+concepts: 5-bit chunk encoding with bitwise shifts, ASCII value manipulation, continuation bit signaling
+
+[Instruction]
+Create a C function to encode an integer into a sequence of encoded characters, where each character represents a 5-bit chunk of the integer. The ASCII value of each chunk character is formed by adding 63 to the 5-bit chunk's value. For all chunks except the last one, set the 6th bit to 1 to indicate continuation. Employ bitwise operations for this encoding process.
+
+[Response]
+To encode an integer into a sequence of encoded characters based on the specified criteria, let's follow these steps:
+
+1. Break down the integer into 5-bit chunks: Extract 5-bit chunks from the integer using using `& 31` (`0x1F`), because the binary representation of `31` (`11111`) has the last five bits set, which will effectively extract the 5 bits we are interested in. We start from the least significant bits (LSB).
+2. Set continuation bit: For all chunks except the last one, set the 6th bit to 1 using `| 32` (`0x20`) because the binary representation of `32` (`100000`) has the 6th bit set to 1. This indicates that there's another continuation chunk following.
+3. Shift right: Right-shift the value by 5 to process the next 5 bits.
+4. Convert to characters: Use `ord` and `chr` to convert each chunk (now effectively 6 bits due to the continuation bit) into a character by adding 63 to its value. This ensures that the character is within a printable ASCII range.
+5. Assembly: Assemble these characters into the final encoded string while maintaining the order of the chunks through `reversed`.
+
+Here's how you can implement this function:
+
+```c
+char* encode_integer_to_chars(unsigned int value) {
+    char buffer[8]; 
+    int i = 0;
+
+    if (value == 0) {
+        char* result = (char*)malloc(2);  
+        result[0] = 63; // ASCII '?'
+        result[1] = '\0';
+        return result;
+    }
+
+    while (value > 0) {
+        unsigned char chunk = value & 0x1F; 
+        value >>= 5;
+        if (value > 0) {
+            chunk |= 0x20; 
+        }
+        buffer[i++] = chunk + 63;
+    }
+
+    char* result = (char*)malloc(i + 1);
+    for (int j = 0; j < i; ++j) {
+        result[j] = buffer[i - j - 1];
+    }
+    result[i] = '\0'; 
+
+    return result;
+}
+```
+
+Keep in mind that this function is designed for non-negative integers. In C, right-shifting (`>>`) a negative integer preserves the sign bit, which could lead to infinite loops or other incorrect behaviors if the same encoding approach is applied to negative integers without appropriate adjustments.
+
+[Tests]
+You can validate this function with the following test cases that cover scenarios from zero to a number requiring more than one chunk, ensuring the function operates as expected:
+
+```c
+assert(strcmp(encode_integer_to_chars(0), (char[]){63, '\0'}) == 0);
+assert(strcmp(encode_integer_to_chars(1), (char[]){63 + 1, '\0'}) == 0);
+assert(strcmp(encode_integer_to_chars(31), (char[]){63 + 31, '\0'}) == 0);
+assert(strcmp(encode_integer_to_chars(0b1), (char[]){0b1 + 63, '\0'}) == 0);
+assert(strcmp(encode_integer_to_chars(0b1000001), (char[]){0b10 + 63, 0b100001 + 63, '\0'}) == 0);
+```
+
+### Example 2
+[Code]
+//**
+* Return ceil(n / 2**b) without performing any floating-point or division operations.
+*/
+int ceil_shift(int n, int b) {
+    assert(n >= 0 && b >= 0);
+
+    int mask = (1 << b) - 1;
+    if (n & mask) {
+        return (n >> b) + 1;
+    } else {
+        return n >> b;
+    }
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: medium
+concepts: bitwise operation for division, ceiling without division or float, input validation with assertions, non-negative integer checks
+
+[Instruction]
+Develop a C function `ceil_divide_without_div` that computes the ceiling of `n / 2**b` without using division, floating-point operations, built-in functions like `math.ceil`, or converting it into computing the floor. Instead, use bit manipulation to achieve the result. You write assertions to ensure both `n` and `b` are non-negative integers.
+
+[Response]
+We can leverage the properties of bitwise operations to develop a C function that computes the ceiling of `n / 2**b` without using division, floating-point operations, or any built-in functions like `math.ceil`, and strictly avoiding converting the problem into a floor computation.
+
+In the context, dividing by `2**b` is equivalent to right-shifting `n` by `b` bits in binary representation when `n` is divisible by `2**b`. Otherwise, this approach inherently computes the floor of the division. To adjust for the ceiling without directly calculating it, we can consider two cases:
+
+1. If `n` is divisible by `2**b`, the result of the division is simply the value of right-shifting `n` by `b` bits.
+2. Otherwise, we need to increment the right-shifted result by 1 to achieve the ceiling effect.
+
+To determine the divisibility of `n` by `2**b`, we can check if the first `b` bits of `n` are all 0. This can be done using a mask with the first `b` bits set to 1, and then performing a bitwise AND operation with `n`. If the result is 0, it indicates that `n` is divisible by `2**b`. The mask can be created using `mask = (1 << b) - 1`.
+
+We'll also include assertions to ensure that `n` and `b` are non-negative integers.
+
+Here is the implementation of `ceil_divide_without_div`:
+
+```c
+int ceil_divide_without_div(int n, int b) {
+    assert(n >= 0 && b >= 0);
+
+    int mask = (1 << b) - 1;
+    int divisible = (n & mask) == 0;
+    int result = n >> b;
+    if (!divisible) {
+        result += 1;
+    }
+    return result;
+}
+```
+
+This function calculates the ceiling of `n / 2**b` purely through bitwise manipulation and integer arithmetic. The assertions ensure the input constraints are met, as specified.
+
+[Tests]
+To verify the correctness of the function, we can compare the results of our function with the expected results obtained using `math.ceil` to ensure the correctness of the ceiling division operation:
+
+```c
+import math
+
+assert(ceil_divide_without_div(10, 3) == (int)ceil(10.0 / (1 << 3)));
+assert(ceil_divide_without_div(17, 4) == (int)ceil(17.0 / (1 << 4)));
+assert(ceil_divide_without_div(100, 5) == (int)ceil(100.0 / (1 << 5)));
+assert(ceil_divide_without_div(0, 3) == (int)ceil(0.0 / (1 << 3)));
+assert(ceil_divide_without_div(1, 0) == (int)ceil(1.0 / (1 << 0)));
+```
+
+### Example 4
+[Code]
+    return (a + 1) * (b + 1) - 1;
+}
+
+int keys_count(int a, int b) {
+    return powerset(a, b) * 2 - a - b;
+}
+
+double formula(int k) {
+    if (k % 2 != 0) {
+        return ((k + 1) * (k + 1)) / 2.0 + k + 1;
+    } else {
+        return (k * k) / 2.0 + 2 * k + 1;
+    }
+}
+
+void multiset_powerset(int* multiset, int n) {
+    int c[n];
+    int changed;
+    while (1) {
+        changed = 0;
+        int i = n - 1;
+        while (i >= 0 && !changed) {
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: special formula implementation, odd and even number handling, function composition
+
+[Instruction]
+Here are two special formulas:
+
+$$
+f_1(a, b) = (a + 1) \cdot (b + 1) - 1
+$$
+
+$$
+f_2(k) = \begin{cases}
+    \frac{(k + 1)^2}{2} + k + 1 & \text{if } k \text{ is odd} \\
+    \frac{k^2}{2} + 2k + 1 & \text{if } k \text{ is even}
+\end{cases}
+$$
+
+Write a C function to return $f_2(f_1(a, b))$ for given `a` and `b`.
+
+[Response]
+Based on the formulas you provided, we can define two C functions, `f1(a, b)` and `f2(k)`, respectively, and then combine them to calculate $f2(f1(a, b))$ for given `a` and `b`.
+
+Here is the implementation:
+
+```c
+int f1(int a, int b) {
+    return (a + 1) * (b + 1) - 1;
+}
+
+double f2(int k) {
+    if (k % 2 != 0) {
+        return ((k + 1) * (k + 1)) / 2.0 + k + 1;
+    } else {
+        return (k * k) / 2.0 + 2 * k + 1;
+    }
+}
+
+double f1_f2_combined(int a, int b) {
+    int k = f1(a, b);
+    return f2(k);
+}
+```
+
+In this implementation:
+
+- `f1(a, b)` calculates the first formula you've given.
+- `f2(k)` calculates the second formula, with a conditional branch for whether `k` is even or odd.
+- `f1_f2_combined(a, b)` uses the output of `f1(a, b)` as the input for `f2(k)` and returns the result.
+
+[Tests]
+To test this combined function, you can simply compare it with the direct application of `f2` to the result of `f1` for different values of `a` and `b`:
+
+```c
+int main() {
+    assert(fabs(f1_f2_combined(2, 3) - f2(f1(2, 3))) < 1e-6);
+    assert(fabs(f1_f2_combined(4, 5) - f2(f1(4, 5))) < 1e-6);
+    assert(fabs(f1_f2_combined(6, 7) - f2(f1(6, 7))) < 1e-6);
+    return 0;
+}
+```
+
+### Example 5
+[Code]
+    while (left < len && ryt >= start && left <= ryt) {
+        int mid = (left + ryt) / 2;
+        if (arr[mid] == target) {
+            return mid;
+        } else if (arr[mid] > target) {
+            ryt = mid - 1;
+        } else {
+            left = mid + 1;
+        }
+    }
+    return left;
+}
+
+void tripletsSorting(int nums[], int len, int t) {
+    int count = 0;
+    for (int i = 0; i < len; i++) {
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: insertion point for a sorted array, optimized time complexity
+
+[Instruction]
+Design a C function that takes a sorted array and a target value, and return a valid index where target can be inserted to maintain the array's sorted order. Optimize the function to run in logarithmic time complexity.
+
+For example, given `array = [1, 3, 5, 5, 6]` and `target = 5`, the function should return either 2 or 3 because 5 presents at both indices 2 and 3.
+
+[Response]
+To solve this problem efficiently and ensure logarithmic time complexity, we can use a binary search algorithm. Compared with a standard binary search that looks for an exact match, we can modify the algorithm such that when the target is not found, we return the `left` bound, which represents the index where the target can be inserted to maintain the array's sorted order. Since any valid index for insertion is acceptable, we can direclty return the index if there is an exact match.
+
+Here is a C function that implements this approach:
+
+```c
+#include <stdio.h>
+
+int search_insert_position(int nums[], int len, int target) {
+    int left = 0;
+    int right = len - 1;
+
+    while (left <= right) {
+        int mid = (left + right) / 2;
+
+        if (nums[mid] == target) {
+            return mid;
+        } else if (nums[mid] < target) {
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+
+    return left;
+}
+```
+
+This implementation ensures that when `target` is not found, `left` represents the correct insertion index. This is because at the end of the loop, all elements to the left of `left` are smaller than `target`, all elements to the right of `left` are equal to or larger than `target`, and `left > right`. Therefore, `left` is the correct index for insertion to maintain the sorted order.
+
+[Tests]
+You can test the function with scenarios where the target is found at multiple indices and where the target is not present in the array:
+
+```c
+int main() {
+    int nums[] = {1, 3, 5, 5, 6};
+    int len = sizeof(nums) / sizeof(nums[0]);
+
+    assert(search_insert_position(nums, len, 5) == 2 || search_insert_position(nums, len, 5) == 3);
+    assert(search_insert_position(nums, len, 2) == 1);
+    assert(search_insert_position(nums, len, 7) == 5);
+    assert(search_insert_position(nums, len, 0) == 0);
+
+    return 0;
+}
+```
+
+### Example 7
+[Code]
+const char* format_size(double num) {
+    static char result[20];
+    const char* units[] = {"bytes", "KB", "MB", "GB", "TB"};
+    
+    for (int i = 0; i < 5; i++) {
+        if (num < 1024.0 && num > -1024.0) {
+            snprintf(result, sizeof(result), "%.1f%s", num, units[i]);
+            return result;
+        }
+        num /= 1024.0;
+    }
+    
+    snprintf(result, sizeof(result), "%.1f%s", num, units[4]);
+    return result;
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: arithmetic operations for size conversion, rounding numbers, dynamic unit selection, string interpolation
+
+[Instruction]
+Create a C function to format a file size in bytes into a human-readable string representation, using 'bytes', 'KB' (kilobytes), 'MB' (megabytes), 'GB' (gigabytes), or 'TB' (terabytes) units. The output should be rounded to one decimal place and follow the format: "{X.Y}{Unit}", where "Unit" is the appropriate size unit and "X.Y" is the rounded size. For example, `format_size(1024 * 512)` should return `'512.0KB'`, and `format_size(1024**2 - 1)` should return `'1024.0KB'`.
+
+[Response]
+To create such a function, we can use a loop to iterate through a predefined list of units (`['bytes', 'KB', 'MB', 'GB', 'TB']`) and check if the given number of bytes fits into the current unit by comparing it with 1024.0 and -1024.0 (for handling negative sizes). We'll keep dividing the number by 1024.0 until the correct unit is found where the number is less than 1024.0. Then, we'll format the result using the appropriate unit and the rounded size.
+
+```c
+const char* format_size(long long size_bytes) {
+    static char result[20];
+    const char* units[] = {"bytes", "KB", "MB", "GB", "TB"};
+    double num = (double)size_bytes;
+    
+    // Special case for 0 bytes
+    if (size_bytes == 0) {
+        snprintf(result, sizeof(result), "0.0bytes");
+        return result;
+    }
+
+    // Iterate through units
+    for (int i = 0; i < 5; i++) {
+        if (num < 1024.0) {
+            snprintf(result, sizeof(result), "%.1f%s", num, units[i]);
+            return result;
+        }
+        num /= 1024.0;
+    }
+
+    // Return for 'TB' unit if the number is large enough
+    snprintf(result, sizeof(result), "%.1f%s", num, units[4]);
+    return result;
+}
+
+```
+
+This implementation handles both positive and negative file sizes and returns the formatted size as a string, even though negative sizes are not common in real-world scenarios.
+
+[Tests]
+We can write tests that cover both positive and negative sizes across different units to validate the correctness of the `format_size` function:
+
+```c
+long long test_data[][2] = {
+        {1024 * 1024, "1.0MB"},
+        {1024 * 1024 - 1, "1024.0KB"},
+        {1024 * 1024 * 1024 * 512, "512.0GB"},
+        {1024 * 1024 * 1024 * 1024 * 512, "512.0TB"}
+    };
+
+    // Loop through the test data and check the function
+    for (int i = 0; i < 4; i++) {
+        long long size = test_data[i][0];
+        const char* expected_output = (const char*)test_data[i][1];
+        char negative_expected_output[20];
+        snprintf(negative_expected_output, sizeof(negative_expected_output), "-%s", expected_output);
+
+        assert(strcmp(format_size(size), expected_output) == 0);
+        assert(strcmp(format_size(-size), negative_expected_output) == 0);
+    }
+```
+
+### Example 8
+[Code]
+void unify_stringlist(char *L[], int len) {
+    for (int i = 0; i < len; i++) {
+        int count = 0;
+        for (int j = 0; j < i; j++) {
+            if (strcmp(L[i], L[j]) == 0) {
+                count++;
+            }
+        }
+        
+        // Adding asterisks if necessary
+        if (count > 0) {
+            char buffer[100];
+            sprintf(buffer, "%s", L[i]);
+            for (int k = 0; k < count; k++) {
+                strcat(buffer, "*");
+            }
+            strcpy(L[i], buffer);
+        }
+    }
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: unique string creation, precondition checking for type validation
+
+[Instruction]
+Design a C function to encode a list of strings into a unique list with the same length, order, and meaning. The new list is formed by appending asterisks (*) to duplicate strings. For instance, given ['a', 'a', 'b', 'a', 'c'], the function should return ['a', 'a*', 'b', 'a**', 'c'], while for ['a', 'b', 'c'] it should return ['a', 'b', 'c'] without any changes. Write assertions to ensure the input is a list of strings.
+
+Solve the problem in two lines of code, one for the precondition check and the other for the main logic.
+
+[Response]
+You can achieve this functionality by first ensuring the input meets your requirements using an `assert` statement. Then, use another array to iterate through the input list and append `'*'` to the strings. The number of `'*'` is the number of occurrences of the string before the current index.
+
+Here's how you can do it in two lines of C code:
+
+```c
+void encode_strings(char *L[], int len) {
+    assert(L != NULL); // Precondition check for a non-null list of strings
+
+    for (int i = 0; i < len; i++) {
+        int count = 0;
+        for (int j = 0; j < i; j++) {
+            if (strcmp(L[i], L[j]) == 0) {
+                count++;
+            }
+        }
+
+        if (count > 0) {
+            char buffer[100];
+            sprintf(buffer, "%s", L[i]);
+            for (int k = 0; k < count; k++) {
+                strcat(buffer, "*");
+            }
+            strcpy(L[i], buffer);
+        }
+    }
+}
+```
+
+Note that although the function is concise, it is not the most efficient solution for large lists.
+
+[Tests]
+You can test the function with the provided examples to ensure it correctly encodes the strings as expected:
+
+```c
+int main() {
+    // Test case 1
+    char *list1[] = {"a", "a", "b", "a", "c"};
+    int len1 = sizeof(list1) / sizeof(list1[0]);
+    encode_strings(list1, len1);
+    char *expected1[] = {"a", "a*", "b", "a**", "c"};
+    assert(compare_string_arrays(list1, expected1, len1) == 1); // Assert that list1 matches expected1
+
+    // Test case 2
+    char *list2[] = {"a", "b", "c"};
+    int len2 = sizeof(list2) / sizeof(list2[0]);
+    encode_strings(list2, len2);
+    char *expected2[] = {"a", "b", "c"};
+    assert(compare_string_arrays(list2, expected2, len2) == 1); // Assert that list2 matches expected2
+
+    return 0;
+}
+```
+
+### Example 9
+[Code]
+void** create_folds_list(int* data, int len, int count) {
+    int fold_count = len / count;
+    void** folds = malloc(count * sizeof(void*)); // Array to hold pointers to folds
+
+    for (int fold_index = 0; fold_index < count; fold_index++) {
+        int low = fold_index * fold_count;
+        int high = (fold_index + 1) * fold_count;
+
+        // Allocate memory for each fold
+        int* fold = malloc(fold_count * sizeof(int));
+
+        for (int i = low, j = 0; i < high; i++, j++) {
+            fold[j] = data[i]; // Copy elements into the fold
+        }
+
+        folds[fold_index] = fold; // Store the fold pointer
+    }
+
+    return folds;
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: medium
+concepts: data partitioning and slicing, learning from input-output examples
+
+[Instruction]
+Construct a C function `create_folds(data, count)` to create a list of folds from the given data, where each fold is a subsequence of the original data. The length of each fold should be approximately equal with at most a difference of 1. The function should satisfy the following assertions:
+
+```c
+#include <assert.h>
+
+int main() {
+    // Test case 1
+    int data1[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    void* folds1[] = { (int[]){0, 1, 2, 3, 4, 5}, (int[]){6, 7, 8, 9, 10, 11} };
+    assert(compare_string_arrays(create_folds_list(data1, 12, 2), folds1, 2));
+
+    // Test case 2
+    int data2[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    void* folds2[] = { (int[]){0, 1, 2, 3}, (int[]){4, 5, 6, 7} };
+    assert(compare_string_arrays(create_folds_list(data2, 8, 2), folds2, 2));
+
+    // Test case 3
+    assert(create_folds_list((int[]){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, 25, -5) == NULL);
+
+    // Test case 4
+    void* folds4[] = { (int[]){0, 1, 2}, (int[]){3, 4, 5} };
+    assert(compare_string_arrays(create_folds_list((int[]){0, 1, 2, 3, 4, 5}, 6, 2), folds4, 2));
+
+    return 0;
+}
+```
+
+[Response]
+To create a C function that generates a list of folds from given data with each fold having approximately equal length (with at most a difference of 1 between any two folds), you can follow these steps:
+
+1. Return an empty list immediately if `count` is non-positive since it's not possible to create a valid number of folds.
+2. Divide the total length of the data by `count`, rounding down, to get the minimum number of items each fold should have.
+3. Calculate the remainder to see how many extra items need to be distributed among the folds. They are distributed one by one to the first `remainder` folds.
+4. Use a loop to create each fold, adjusting the starting and ending indices based on the calculations above to ensure each fold has the correct number of items.
+
+Here's how you can implement this:
+
+```c
+void** create_folds_list(int* data, int len, int count) {
+    // Return NULL if count is non-positive
+    if (count <= 0) {
+        return NULL;
+    }
+
+    // Calculate fold size and remainder
+    int fold_size = len / count;
+    int remainder = len % count;
+
+    // Allocate memory for the folds
+    void** folds = malloc(count * sizeof(void*));
+    if (!folds) {
+        return NULL; // Return NULL if memory allocation fails
+    }
+
+    int start_index = 0;
+    for (int i = 0; i < count; i++) {
+        // Allocate memory for each fold (with possible extra element)
+        int current_fold_size = fold_size + (i < remainder ? 1 : 0);
+        int* fold = malloc(current_fold_size * sizeof(int));
+        if (!fold) {
+            // Free any previously allocated memory if allocation fails
+            for (int j = 0; j < i; j++) {
+                free(folds[j]);
+            }
+            free(folds);
+            return NULL;
+        }
+
+        // Copy data into the fold
+        for (int j = 0; j < current_fold_size; j++) {
+            fold[j] = data[start_index + j];
+        }
+
+        folds[i] = fold; // Store the fold pointer
+        start_index += current_fold_size;
+    }
+
+    return folds;
+}
+```
+
+This implementation ensures that each fold has an equal length with at most a difference of 1 between any two folds. It handles edge cases, such as a non-positive `count`, by returning an empty list as specified.
+
+[Tests]
+You can test your code with the provided assertions to verify that the function works correctly:
+
+```c
+#include <assert.h>
+
+int main() {
+    // Test case 1
+    int data1[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    void* folds1[] = { (int[]){0, 1, 2, 3, 4, 5}, (int[]){6, 7, 8, 9, 10, 11} };
+    assert(compare_string_arrays(create_folds_list(data1, 12, 2), folds1, 2));
+
+    // Test case 2
+    int data2[] = {0, 1, 2, 3, 4, 5, 6, 7};
+    void* folds2[] = { (int[]){0, 1, 2, 3}, (int[]){4, 5, 6, 7} };
+    assert(compare_string_arrays(create_folds_list(data2, 8, 2), folds2, 2));
+
+    // Test case 3
+    assert(create_folds_list((int[]){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24}, 25, -5) == NULL);
+
+    // Test case 4
+    void* folds4[] = { (int[]){0, 1, 2}, (int[]){3, 4, 5} };
+    assert(compare_string_arrays(create_folds_list((int[]){0, 1, 2, 3, 4, 5}, 6, 2), folds4, 2));
+
+    return 0;
+}
+```
+
+### Example 10
+[Code]
+int duration(const char *string) {
+    regex_t regex;
+    regmatch_t matches[3];
+    const char *pattern = "^([0-9]+)([smhd])$";
+
+    if (regcomp(&regex, pattern, REG_EXTENDED)) {
+        return -1;
+    }
+
+    if (regexec(&regex, string, 3, matches, 0)) {
+        regfree(&regex);
+        return -1;
+    }
+
+    char num_str[matches[1].rm_eo - matches[1].rm_so + 1];
+    strncpy(num_str, string + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
+    num_str[matches[1].rm_eo - matches[1].rm_so] = '\0';
+
+    char suffix = string[matches[2].rm_so];
+    int num = atoi(num_str);
+    int result = num;
+
+    regfree(&regex);
+    return result;
+}
+
+[Property]
+category: function implementation
+language: c
+difficulty: medium
+concepts: regular expression for pattern matching, lookup for suffix mapping, error handling with exceptions
+
+[Instruction]
+Create a C function that converts a string representation of a time duration into its total number of seconds.
+The input string should follow a format that includes a numeric part followed by a time unit suffix without any spaces between.
+The time unit can be seconds in the form of 's' or 'sec', minutes in the form of 'm' or 'min', hours in the form of 'h' or 'hour', and days in the form of 'd' or 'day' (units are in small case).
+If the input format is invalid, the function should raise a ValueError.
+
+For example, the function should pass the following assertions:
+
+```c
+int main() {
+    if (parse_duration("15s") == 15) {
+        printf("Test 1 passed\n");
+    }
+
+    if (parse_duration("2min") == 120) {
+        printf("Test 2 passed\n");
+    }
+
+    if (parse_duration("1h") == 3600) {
+        printf("Test 3 passed\n");
+    }
+
+    if (parse_duration("1d") == 86400) {
+        printf("Test 4 passed\n");
+    }
+
+    if (parse_duration("30") == -1) {
+        printf("Test 5 passed (invalid input)\n");
+    }
+
+    return 0;
+}
+```
+
+[Response]
+The desired function aims to transform a string representation into its total number of seconds. The implementation can be split into two parts:
+
+Input validation:
+
+1. The input string includes two parts: a number as the prefix and the unit as the suffix.
+2. We can use regular expression to assert the prefix must be a number (d+) and suffix must be one of s/sec/m/min/h/hour/d/day.
+3. If the input string cannot the regular expression, we raise a ValueError.
+
+Result computation:
+
+1. Based on the matches of regular expression, we capture the number and unit part.
+2. We convert the unit to seconds: 's'/'sec' -> 1 second, 'm'/'min' -> 60 seconds, 'h'/'hour' -> 3600 seconds, 'd'/'day' -> 86400 seconds.
+3. We multiply the seconds of the unit and the prefix number and return it as an integer.
+
+Here's how you can implement this:
+
+```c
+int parse_duration(const char *duration_str) {
+    int value;
+    char unit[10];
+
+    // Try to extract the number and the unit from the string
+    if (sscanf(duration_str, "%d%9s", &value, unit) != 2) {
+        // If the input format is invalid, return -1 (error)
+        return -1;
+    }
+
+    // Convert unit to lowercase
+    for (int i = 0; unit[i]; i++) {
+        unit[i] = tolower((unsigned char)unit[i]);
+    }
+
+    // Determine the number of seconds based on the unit
+    if (strcmp(unit, "s") == 0 || strcmp(unit, "sec") == 0) {
+        return value;
+    } else if (strcmp(unit, "m") == 0 || strcmp(unit, "min") == 0) {
+        return value * 60;
+    } else if (strcmp(unit, "h") == 0 || strcmp(unit, "hour") == 0) {
+        return value * 3600;
+    } else if (strcmp(unit, "d") == 0 || strcmp(unit, "day") == 0) {
+        return value * 86400;
+    } else {
+        // If the unit is unrecognized, return -1 (error)
+        return -1;
+    }
+}
+```
+
+[Tests]
+You can test your code on various valid and invalid inputs to ensure that the function behaves as expected:
+
+```c
+int main() {
+    // Test additional valid inputs with different suffix representations
+    if (parse_duration("10sec") == 10) {
+        printf("Test 1 passed: Check for 'sec' suffix\n");
+    }
+
+    if (parse_duration("3min") == 180) {
+        printf("Test 2 passed: Check for 'min' suffix\n");
+    }
+
+    if (parse_duration("5h") == 18000) {
+        printf("Test 3 passed: Check for 'h' suffix\n");
+    }
+
+    if (parse_duration("2hour") == 7200) {
+        printf("Test 4 passed: Check for 'hour' suffix\n");
+    }
+
+    if (parse_duration("1day") == 86400) {
+        printf("Test 5 passed: Check for 'day' suffix\n");
+    }
+
+    // Test edge cases
+    if (parse_duration("0s") == 0) {
+        printf("Test 6 passed: Zero duration\n");
+    }
+
+    if (parse_duration("0min") == 0) {
+        printf("Test 7 passed: Zero minutes\n");
+    }
+
+    // Test inputs with leading zeros
+    if (parse_duration("001s") == 1) {
+        printf("Test 8 passed: Leading zeros\n");
+    }
+
+    if (parse_duration("010min") == 600) {
+        printf("Test 9 passed: Leading zeros with minutes\n");
+    }
+
+    // Test case sensitivity and invalid suffix handling
+    assert_value_error("10S");
+    assert_value_error("2hours");
+    assert_value_error("5 mins");
+    assert_value_error("h1");
+    assert_value_error("100");
+
+    // Test extremely large numbers
+    if (parse_duration("1000000s") == 1000000) {
+        printf("Test 10 passed: Very large number of seconds\n");
+    }
+
+    return 0;
+}
+```
+
+### Example 12
+[Code]
+while (cur_num < MAX_ELEMENTS) {
+        int cluster_idx = sorted_importances[cur_num].cluster_idx;
+        int filter_idx = sorted_importances[cur_num].filter_idx;
+
+        if (tmp_pruning_quotas[cluster_idx] > 0) {
+            tmp_pruning_quotas[cluster_idx] -= 1;
+        } else {
+            cur_num += 1;
+            continue;
+        }
+
+        Cluster *cluster = get_cluster_by_id(&pruned_module_groups_info, cluster_idx);
+        for (int i = 0; i < cluster->num_elements; i++) {
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: iteration with a while loop, index-based data access, conditional branching, nested loops
+
+[Instruction]
+Create a C function that identifies all pairs of elements within a list of integers where the second element of the pair is at least greater than the first by `growth_ratio` and the indices of the elements are within a specified `maximum_distance` from each other.
+
+[Response]
+You can write a C function `find_pairs` that takes three parameters:
+
+- `numbers`: The list of integers.
+- `growth_ratio`: A non-negative `float` that specifies the ratio by which the second element should be greater than the first.
+- `maximum_distance`: A non-negative integer that indicates the maximum index distance allowed between the two elements in the pair.
+
+The function will return a list of tuples where each tuple contains the indices of the pair of elements that satisfy the conditions.
+
+Here is how you can implement this function:
+
+```c
+// Define a structure to store pairs of indices
+typedef struct {
+    int first_index;
+    int second_index;
+} Pair;
+
+// Function to find all pairs based on the conditions
+Pair* find_pairs(int* numbers, int size, float growth_ratio, int maximum_distance, int* result_size) {
+    // Allocate an array to store the pairs, initially assume max possible pairs
+    int max_pairs = size * (size - 1) / 2;  // Maximum number of pairs possible
+    Pair* pairs = (Pair*)malloc(max_pairs * sizeof(Pair));
+    *result_size = 0;  // Initialize the result size to 0
+
+    // Iterate through the list to find valid pairs
+    for (int i = 0; i < size; i++) {
+        for (int j = i + 1; j < size && j <= i + maximum_distance; j++) {
+            if (numbers[j] - numbers[i] >= growth_ratio) {
+                // Add the valid pair to the list
+                pairs[*result_size].first_index = i;
+                pairs[*result_size].second_index = j;
+                (*result_size)++;  // Increment the result size
+            }
+        }
+    }
+
+    return pairs;  // Return the list of pairs
+}
+```
+
+This function iterates over the pairs of elements in the list whose indices satisfy the distance constraint and stores the valid pairs that meet the growth ratio condition.
+
+[Tests]
+To ensure the function's correct behavior, you can compare your implementation against a brute-force approach  to first generate all possible pairs and then filter them based on the conditions. The tests should cover both the basic functionality where pairs are found, and edge cases where no pairs are found, while also altering the `growth_ratio` and `maximum_distance` parameters to cover more cases:
+
+```c
+Pair* brute_force_pairs(int* numbers, int length, float growth_ratio, int maximum_distance, int* result_size) {
+    int capacity = 100; // initial capacity
+    Pair* result = malloc(capacity * sizeof(Pair));
+    *result_size = 0;
+
+    for (int i = 0; i < length; i++) {
+        for (int j = i + 1; j < length && j < i + 1 + maximum_distance; j++) {
+            if ((float)(numbers[j] - numbers[i]) >= growth_ratio) {
+                if (*result_size >= capacity) {
+                    capacity *= 2;
+                    result = realloc(result, capacity * sizeof(Pair));
+                }
+                result[*result_size].first_index = i;
+                result[*result_size].second_index = j;
+                (*result_size)++;
+            }
+        }
+    }
+
+    return result;
+}
+
+int main() {
+    struct {
+        int numbers[10];
+        int length;
+        float growth_ratio;
+        int maximum_distance;
+    } test_cases[] = {
+        {{30, 15, 60, 7, 77, 13, 10}, 7, 8, 3},
+        {{30, 15, 60, 7, 77, 13, 10}, 7, 0.2f, 3},
+        {{30, 15, 60, 7, 77, 13, 10}, 7, 30, 0},
+        {{30, 15, 60, 7, 77, 13, 10}, 7, 0, 2},
+        {{}, 0, 1, 3},
+        {{8, 8, 8, 8}, 4, 1, 0}
+    };
+
+    int num_tests = sizeof(test_cases) / sizeof(test_cases[0]);
+
+    for (int t = 0; t < num_tests; t++) {
+        int* numbers = test_cases[t].numbers;
+        int length = test_cases[t].length;
+        float growth_ratio = test_cases[t].growth_ratio;
+        int maximum_distance = test_cases[t].maximum_distance;
+
+        int expected_size, result_size;
+        Pair* expected = brute_force_pairs(numbers, length, growth_ratio, maximum_distance, &expected_size);
+        Pair* result = find_pairs(numbers, length, growth_ratio, maximum_distance, &result_size);
+
+        assert(compare_pairs(expected, expected_size, result, result_size));
+
+        free(expected);
+        free(result);
+    }
+
+    printf("All tests passed.\n");
+    return 0;
+}
+```
+
+### Example 13
+[Code]
+AccuracyResult accuracy(float** output, int* target, int batch_size, int num_classes, int* topk, int topk_count) {
+    AccuracyResult result;
+    result.accuracies = (float*)malloc(sizeof(float) * topk_count);
+    result.k_count = topk_count;
+
+    for (int k_index = 0; k_index < topk_count; ++k_index) {
+        int k = topk[k_index];
+        int correct_k = 0;
+
+        for (int i = 0; i < batch_size; ++i) {
+            // Copy row for sorting
+            float* scores = (float*)malloc(sizeof(float) * num_classes);
+            int* indices = (int*)malloc(sizeof(int) * num_classes);
+            for (int j = 0; j < num_classes; ++j) {
+                scores[j] = output[i][j];
+                indices[j] = j;
+            }
+
+            // Sort indices based on scores (descending)
+            for (int m = 0; m < num_classes - 1; ++m) {
+                for (int n = m + 1; n < num_classes; ++n) {
+                    if (scores[m] < scores[n]) {
+                        float tmp_score = scores[m];
+                        scores[m] = scores[n];
+                        scores[n] = tmp_score;
+
+                        int tmp_index = indices[m];
+                        indices[m] = indices[n];
+                        indices[n] = tmp_index;
+                    }
+                }
+            }
+
+            // Check if target[i] is in top-k
+            for (int j = 0; j < k; ++j) {
+                if (indices[j] == target[i]) {
+                    correct_k++;
+                    break;
+                }
+            }
+
+            free(scores);
+            free(indices);
+        }
+
+        result.accuracies[k_index] = (correct_k * 100.0f) / batch_size;
+    }
+
+    return result;
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: medium
+concepts: top-k accuracy computation, array operations, batch processing, default arguments
+
+[Instruction]
+Create a C function `calculate_top_k_accuracy` using array that calculates the top-k accuracy from a batch of predictions and actual labels. It should accept two arrays, `predictions` and `targets`, and an integer `k` (default 3). The function should return the average top-k accuracy as a float, determining if the true label is within the top `k` predictions for each input.
+
+[Response]
+The function will take the following parameters as input:
+
+- `predictions`: an array of shape `(batch_size, num_classes)` that contains the predicted scores for each class.
+- `targets`: an array of shape `(batch_size,)` that contains the true class labels for each input.
+- `k`: an integer representing the number of top predictions to consider for computing the accuracy. The default value should be 3.
+
+Here is how you can write this function:
+
+```c
+float calculate_top_k_accuracy(float** predictions, int* targets, int batch_size, int num_classes, int k) {
+    int correct = 0;
+    for (int i = 0; i < batch_size; ++i) {
+        int* top_indices = (int*)malloc(sizeof(int) * num_classes);
+        for (int j = 0; j < num_classes; ++j) top_indices[j] = j;
+
+        // Sort indices by descending scores
+        for (int m = 0; m < num_classes - 1; ++m) {
+            for (int n = m + 1; n < num_classes; ++n) {
+                if (predictions[i][top_indices[n]] > predictions[i][top_indices[m]]) {
+                    int temp = top_indices[m];
+                    top_indices[m] = top_indices[n];
+                    top_indices[n] = temp;
+                }
+            }
+        }
+
+        // Check if target is in top-k
+        for (int j = 0; j < k; ++j) {
+            if (top_indices[j] == targets[i]) {
+                correct++;
+                break;
+            }
+        }
+
+        free(top_indices);
+    }
+    return (float)correct / batch_size;
+}
+```
+
+The function retrieves the top k predictions' indices, aligns shapes for comparison with true labels, computes accuracy by checking matches, and returns the average accuracy as a float.
+
+[Tests]
+```c
+#define FLOAT_EQ(x, y) (fabs((x) - (y)) < 1e-6)
+
+// Helper to allocate a 2D array
+float** alloc_2d(int rows, int cols, float data[][cols]) {
+    float** arr = (float**)malloc(rows * sizeof(float*));
+    for (int i = 0; i < rows; i++) {
+        arr[i] = (float*)malloc(cols * sizeof(float));
+        for (int j = 0; j < cols; j++) {
+            arr[i][j] = data[i][j];
+        }
+    }
+    return arr;
+}
+
+// Helper to free 2D array
+void free_2d(float** arr, int rows) {
+    for (int i = 0; i < rows; i++)
+        free(arr[i]);
+    free(arr);
+}
+
+int main() {
+    // Test 1: Basic functionality test
+    {
+        int k = 1;
+        int labels[] = {2, 0, 1, 1};
+        float raw_preds[4][3] = {
+            {0.1, 0.2, 0.9},
+            {1.0, 0.2, 0.3},
+            {0.3, 1.1, 0.2},
+            {0.6, 0.1, 0.3}
+        };
+        float** preds = alloc_2d(4, 3, raw_preds);
+        float acc = calculate_top_k_accuracy(preds, labels, 4, 3, k);
+        assert(FLOAT_EQ(acc, 0.75));
+        free_2d(preds, 4);
+    }
+
+    // Test 2: k = number of classes
+    {
+        int k = 3;
+        int labels[] = {0, 2};
+        float raw_preds[2][3] = {
+            {0.5, -1.2, 0.3},
+            {-1.0, 0.1, 1.2}
+        };
+        float** preds = alloc_2d(2, 3, raw_preds);
+        float acc = calculate_top_k_accuracy(preds, labels, 2, 3, k);
+        assert(FLOAT_EQ(acc, 1.0));
+        free_2d(preds, 2);
+    }
+
+    // Test 3: k > number of classes
+    {
+        int k = 5;
+        int labels[] = {1, 0};
+        float raw_preds[2][2] = {
+            {0.1, -0.2},
+            {-0.3, 0.4}
+        };
+        float** preds = alloc_2d(2, 2, raw_preds);
+        float acc = calculate_top_k_accuracy(preds, labels, 2, 2, k);
+        assert(FLOAT_EQ(acc, 1.0));
+        free_2d(preds, 2);
+    }
+
+    return 0;
+}
+```
+
+### Example 14
+[Code]
+int alternatingCharacters(const char* s) {
+    int i = 0, j = 1, count = 0;
+    int len = strlen(s);
+
+    while (j < len) {
+        if (s[j] == s[i]) {
+            while (j < len && s[j] == s[i]) {
+                j++;
+            }
+            count += j - i - 1;
+        }
+        i = j;
+        j++;
+    }
+
+    return count;
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: 2-pointer technique, conditional loop, string traversal and character comparison, count accumulation
+
+[Instruction]
+Write a C function called `count_conditional_matches` that takes two strings, `str1` and `str2`, as well as a boolean flag `strict` as arguments. The function should count how many times characters from the end of `str1` match with characters from the beginning of `str2` when both strings are traversed simultaneously. The traversal should continue until a pair of characters do not match or until a specific condition influenced by the `strict` flag is met:
+
+- If `strict` is `True`, stop counting as soon as a non-matching pair is found.
+- If `strict` is `False`, skip the non-matching character in `str1` and continue matching with the next character.
+
+The function should return the total count of matching characters. This implementation requires managing two pointers for the characters in `str1` and `str2`, respectively, and using a conditional loop to handle different stopping criteria based on the `strict` parameter.
+
+[Response]
+We can use two pointers, one for each string, to iterate over the characters from the end of str1 and the beginning of str2. The loop continues either until the characters do not match (for both strict and non-strict cases) or until it exhausts one of the strings. The `strict` flag controls the behavior when a mismatch is encountered.
+
+```c
+int count_conditional_matches(const char* str1, const char* str2, bool strict) {
+    int count = 0;
+    int i = strlen(str1) - 1; // Pointer for the end of str1
+    int j = 0; // Pointer for the beginning of str2
+
+    while (i >= 0 && j < strlen(str2)) {
+        if (str1[i] == str2[j]) {
+            count++;
+            i--; // Move backward on str1
+            j++; // Move forward on str2
+        } else {
+            if (strict) {
+                // Stop counting as soon as a mismatch is found
+                break;
+            } else {
+                // Skip the non-matching character in str1 and continue matching with next character in str2
+                i--;
+            }
+        }
+    }
+
+    return count;
+}
+```
+
+[Tests]
+The function can be tested with various inputs to ensure it handles both strict and non-strict cases correctly:
+
+```c
+int main() {
+    // Test function with matching characters
+    assert(count_conditional_matches("hello", "o", true) == 1);
+    assert(count_conditional_matches("fancy", "nancy", false) == 2);
+    assert(count_conditional_matches("abcde", "e", false) == 1);
+    assert(count_conditional_matches("helicopter", "ranges", true) == 1);
+
+    // Test function with no matches
+    assert(count_conditional_matches("apple", "banana", true) == 0);
+    assert(count_conditional_matches("abcdef", "xyzab", false) == 0);
+
+    // Test when both strings are empty
+    assert(count_conditional_matches("", "", true) == 0);
+    assert(count_conditional_matches("", "", false) == 0);
+
+    // Test when one string is empty
+    assert(count_conditional_matches("nonempty", "", true) == 0);
+    assert(count_conditional_matches("", "nonempty", false) == 0);
+
+    return 0;
+}
+```
+
+### Example 15
+[Code]
+void oxford_comma_text_to_list(const char* phrase) {
+    char* phrase_copy = strdup(phrase);  // Make a copy of the input string for safe manipulation
+    char* token = strtok(phrase_copy, ",");  // Tokenize the phrase by commas
+
+    while (token != NULL) {
+        char* subphrase = trim_spaces(token);  // Remove leading/trailing spaces from subphrase
+        char* and_token = strtok(subphrase, "and");  // Tokenize by 'and'
+
+        while (and_token != NULL) {
+            printf("'%s'\n", trim_spaces(and_token));  // Print each part of the subphrase after trimming spaces
+            and_token = strtok(NULL, "and");  // Continue tokenizing by 'and'
+        }
+
+        free(subphrase);  // Free the subphrase memory after it's no longer needed
+        token = strtok(NULL, ",");  // Continue tokenizing the main phrase by commas
+    }
+
+    free(phrase_copy);  // Free the copied phrase string
+}
+
+[Property]
+category: function implementation
+language: C
+difficulty: easy
+concepts: string manipulation and parsing, iterative list extension, handling text connectors
+
+[Instruction]
+Create a concise C function that transforms a string into a list of individual items. The input string contains a list of items separated by commas and the last item preceded by an optional "and". For example:
+- Input: "Eeeny, Meeny, Miney, Moe" --> Output: ['Eeeny', 'Meeny', 'Miney', 'Moe']
+- Input: "Eeeny, Meeny, Miney, and Moe" --> Output: ['Eeeny', 'Meeny', 'Miney', 'Moe']
+- Input: "San Francisco and San Mateo" --> Output: ['San Francisco', 'San Mateo']
+Remove any leading or trailing whitespace.
+
+[Response]
+Here's a concise function `string_to_list` to transform a comma-separated string into a list, replacing " and " with a comma, splitting the result, and stripping whitespace:
+
+```c
+char** string_to_list(const char* input, int* count) {
+    // Create a copy of the input string to manipulate safely
+    char* phrase_copy = strdup(input);
+
+    // Replace " and " with commas
+    char* and_pos = strstr(phrase_copy, " and ");
+    while (and_pos != NULL) {
+        *and_pos = ',';  // Replace " and " with a comma
+        memmove(and_pos + 1, and_pos + 4, strlen(and_pos + 4) + 1); // Shift the rest of the string
+        and_pos = strstr(phrase_copy, " and "); // Find the next " and "
+    }
+
+    // Tokenize the string by commas
+    char* token = strtok(phrase_copy, ",");
+    int size = 0;
+    // Calculate number of tokens (words)
+    while (token != NULL) {
+        size++;
+        token = strtok(NULL, ",");
+    }
+
+    // Allocate memory for the array of strings
+    char** result = (char**)malloc(size * sizeof(char*));
+
+    // Rewind tokenization
+    token = strtok(phrase_copy, ",");
+    int index = 0;
+
+    // Tokenize and trim spaces, store in result array
+    while (token != NULL) {
+        while (*token == ' ') token++;  // Trim leading spaces
+        char* end = token + strlen(token) - 1;
+        while (end > token && *end == ' ') end--;  // Trim trailing spaces
+        *(end + 1) = '\0';  // Null-terminate the trimmed token
+
+        result[index] = strdup(token);  // Copy the token into the result array
+        index++;
+        token = strtok(NULL, ",");
+    }
+
+    *count = size;  // Return the number of tokens
+    free(phrase_copy);
+    return result;
+}
+```
+
+This approach ensures no empty strings are included if there are excess commas or spaces.
+
+[Tests]
+We can test this function on different input strings (e.g., with and without the "and" connector, different numbers of items):
+
+```c
+void free_list(char** list, int count) {
+    for (int i = 0; i < count; i++) {
+        free(list[i]);
+    }
+    free(list);
+}
+int main() {
+    // Test cases and expected results
+    int count;
+    char** result;
+
+    // Test 1
+    result = string_to_list("Eeeny, Meeny, Miney, Moe", &count);
+    assert(count == 4);
+    assert(strcmp(result[0], "Eeeny") == 0);
+    assert(strcmp(result[1], "Meeny") == 0);
+    assert(strcmp(result[2], "Miney") == 0);
+    assert(strcmp(result[3], "Moe") == 0);
+    free_list(result, count);
+
+    // Test 2
+    result = string_to_list("Eeeny, Meeny, Miney, and Moe", &count);
+    assert(count == 4);
+    assert(strcmp(result[0], "Eeeny") == 0);
+    assert(strcmp(result[1], "Meeny") == 0);
+    assert(strcmp(result[2], "Miney") == 0);
+    assert(strcmp(result[3], "Moe") == 0);
+    free_list(result, count);
+
+    // Test 3
+    result = string_to_list("San Francisco and San Mateo", &count);
+    assert(count == 2);
+    assert(strcmp(result[0], "San Francisco") == 0);
+    assert(strcmp(result[1], "San Mateo") == 0);
+    free_list(result, count);
+
+    // Test 4
+    result = string_to_list("Single Item", &count);
+    assert(count == 1);
+    assert(strcmp(result[0], "Single Item") == 0);
+    free_list(result, count);
+
+    return 0;
+}
+```
+
+### Example 19
+[Code]
+int busca_recursiva(int array[], int elemento, int i, int size) {
+    i++;
+    if (i == size) {
+        return -1;
+    }
+    if (array[i] == elemento) {
+        return i;
+    }
+    return busca_recursiva(array, elemento, i, size);
+}
+
+// Main recursive search function (starts the search)
+int busca_linear_recursiva(int array[], int size, int elemento) {
+    return busca_recursiva(array, elemento, -1, size);
+}
+
+
+[Property]
+category: program implementation
+language: C
+difficulty: medium
+concepts: linear search with recursion, default parameter initialization, multiple base cases in recursion
+
+[Instruction]
+Design a C program that not only searches for a target value in a list using recursion but also constructs a trace of the indices it checks. This program should return both the index of the target, if found, or `-1` if not, alongside a list of the indices it examined during the search. The function should handle cases where the target is not present in the list.
+
+[Response]
+We can implement a recursive linear search function that returns the index of the target element if found or `-1` if not. To keep track of the indices examined during the search, we can pass a list as an additional parameter to store these indices.
+
+Here is the C program that implements this functionality:
+
+```c
+// Recursive function that searches for target and records the checked indices
+int search_recursive(int array[], int size, int target, int index, int indices_checked[], int *trace_len) {
+    if (index >= size) {
+        return -1;  // Base case: target not found
+    }
+
+    indices_checked[(*trace_len)++] = index;  // Record index being checked
+
+    if (array[index] == target) {
+        return index;  // Target found
+    }
+
+    return search_recursive(array, size, target, index + 1, indices_checked, trace_len);  // Recursive call
+}
+
+// Wrapper function to initialize and invoke recursive search
+int recursive_search(int array[], int size, int target, int indices_checked[], int *trace_len) {
+    *trace_len = 0;  // Initialize trace length
+    return search_recursive(array, size, target, 0, indices_checked, trace_len);
+}
+
+// Example usage
+int main() {
+    int array[] = {4, 7, 1, 9, 2};
+    int size = sizeof(array) / sizeof(array[0]);
+    int target = 9;
+
+    int indices_checked[100];  // Buffer to store traced indices
+    int trace_len;
+
+    int result = recursive_search(array, size, target, indices_checked, &trace_len);
+
+    printf("Search result: ");
+    if (result != -1) {
+        printf("Target %d found at index %d\n", target, result);
+    } else {
+        printf("Target %d not found\n", target);
+    }
+
+    printf("Indices checked: ");
+    for (int i = 0; i < trace_len; i++) {
+        printf("%d ", indices_checked[i]);
+    }
+    printf("\n");
+
+    return 0;
+}
+```
+
+In this program, the `search_recursive` function recursively searches for the target element in the list and appends the indices checked to the `indices_checked` list. The `recursive_search` function acts as a wrapper to initiate the recursive search and return the result along with the list of indices checked.
+
+[Tests]
+To test the implementation, we need to ensure that both the index of the target element and the list of indices checked are correct. Here are the test cases:
+
+```c
+int main() {
+    // Test 1: Target found in the list
+    int arr1[] = {2, 3, 4, 8, 5, 9, 1, 6, 5, 7, 5};
+    int size1 = sizeof(arr1)/sizeof(arr1[0]);
+    int target1 = 6;
+    int indices1[100], expected1[100];
+    int trace_len1, expected_len1;
+    int result1 = recursive_search(arr1, size1, target1, indices1, &trace_len1);
+
+    int expected_result1 = 7;
+    expected_len1 = expected_result1 + 1;
+    for (int i = 0; i < expected_len1; i++) expected1[i] = i;
+
+    assert(result1 == expected_result1);
+    assert(trace_len1 == expected_len1);
+    assert(arrays_equal(indices1, expected1, trace_len1));
+
+    // Test 2: Target not found
+    int arr2[] = {1, 2, 3, 4, 5};
+    int size2 = sizeof(arr2)/sizeof(arr2[0]);
+    int target2 = 6;
+    int indices2[100], expected2[100];
+    int trace_len2;
+    int result2 = recursive_search(arr2, size2, target2, indices2, &trace_len2);
+
+    int expected_result2 = -1;
+    for (int i = 0; i < size2; i++) expected2[i] = i;
+
+    assert(result2 == expected_result2);
+    assert(trace_len2 == size2);
+    assert(arrays_equal(indices2, expected2, trace_len2));
+
+    // Test 3: Target found at end
+    int arr3[] = {5, 4, 3, 2, 1};
+    int size3 = sizeof(arr3)/sizeof(arr3[0]);
+    int target3 = 1;
+    int indices3[100], expected3[100];
+    int trace_len3;
+    int result3 = recursive_search(arr3, size3, target3, indices3, &trace_len3);
+
+    int expected_result3 = size3 - 1;
+    for (int i = 0; i <= expected_result3; i++) expected3[i] = i;
+
+    assert(result3 == expected_result3);
+    assert(trace_len3 == expected_result3 + 1);
+    assert(arrays_equal(indices3, expected3, trace_len3));
+    return 0;
+}
+```
+
+### Example 21
+[Code]
+if (strcmp(match_case_mode, "auto") == 0) {
+        match_case = is_case_sensitive_needed(ch_names, ch_count);
+    } else {
+        match_case = (strcmp(match_case_mode, "true") == 0);
+    }
+
+    int *picks = malloc(sizeof(int) * pick_count);
+    *out_count = 0;
+
+    for (int i = 0; i < pick_count; ++i) {
+        for (int j = 0; j < ch_count; ++j) {
+            int match = match_case
+                ? strcmp(pick_chs[i], ch_names[j]) == 0
+                : strings_equal_ignore_case(pick_chs[i], ch_names[j]);
+
+            if (match) {
+                picks[(*out_count)++] = j;
+                if (!ordered) break;
+            }
+        }
+    }
+
+    return picks;
+
+[Property]
+category: program implementation
+language: C
+difficulty: medium
+concepts: case-insensitive string matching, controlled case matching based on an option
+
+[Instruction]
+Construct a C program that processes a list of strings provided by the user. The first element is a target string, the second is either 'CaseSensitive' or 'CaseInsensitive' to determine the matching approach, and the remaining elements are candidates for comparison. The program should output the number of times the target appears among the candidates according to the specified matching rule. The solution should include robust error handling to validate the matching rule and check that at least two strings are provided before proceeding.
+
+For example, given the input `['apple', 'CaseInsensitive', 'Apple', 'banana', 'APPLE']`, the program should output `2` since 'Apple' and 'APPLE' match the target 'apple' in a case-insensitive manner.
+
+[Response]
+Here's a C program that fulfills the requirements you specified. It first parses the input list to validate the presence of the target string and matching rule. Then, it compares the target with the candidate strings, adjusting for case sensitivity as specified. Finally, it outputs the count of matches.
+
+```c
+int strings_equal_ignore_case(const char *a, const char *b) {
+    while (*a && *b) {
+        if (tolower((unsigned char)*a++) != tolower((unsigned char)*b++)) {
+            return 0;
+        }
+    }
+    return *a == *b;
+}
+
+void count_matches(int argc, char *argv[]) {
+    if (argc < 4) {
+        fprintf(stderr, "Error: At least a target string, match rule, and one candidate required.\n");
+        return;
+    }
+
+    const char *target = argv[1];
+    const char *rule = argv[2];
+    int case_sensitive;
+
+    if (strcmp(rule, "CaseSensitive") == 0) {
+        case_sensitive = 1;
+    } else if (strcmp(rule, "CaseInsensitive") == 0) {
+        case_sensitive = 0;
+    } else {
+        fprintf(stderr, "Error: Match rule must be 'CaseSensitive' or 'CaseInsensitive'.\n");
+        return;
+    }
+
+    int count = 0;
+    for (int i = 3; i < argc; ++i) {
+        if ((case_sensitive && strcmp(target, argv[i]) == 0) ||
+            (!case_sensitive && strings_equal_ignore_case(target, argv[i]))) {
+            count++;
+        }
+    }
+
+    printf("%d\n", count);
+}
+```
+
+The `count_matches` function implements the main logic of the program, counting the occurrences of the target string among the candidate strings based on the specified matching rule. The `main` function reads the input list from the user, calls `count_matches`, and prints the count of matches.
+
+[Tests]
+You can test the program with various inputs to ensure it handles different scenarios correctly:
+
+```c
+int main() {
+    char *test1[] = {"apple", "CaseInsensitive", "Apple", "banana", "APPLE"};
+    assert(count_matches(5, test1) == 2);
+
+    char *test2[] = {"apple", "CaseSensitive", "Apple", "banana", "APPLE"};
+    assert(count_matches(5, test2) == 0);
+
+    char *test3[] = {"apple", "CaseInsensitive"};
+    assert(count_matches(2, test3) == 0);
+
+    char *test4[] = {"apple", "CaseInsensitive", "apple", "APPLE", "aPpLe", "banana"};
+    assert(count_matches(6, test4) == 3);
+
+    char *test5[] = {"apple", "CaseSensitive", "apple", "APPLE", "aPpLe", "banana"};
+    assert(count_matches(6, test5) == 1);
+
+    // Error Case: Less than 2 items
+    char *test6[] = {"apple"};
+    if (fork() == 0) { count_matches(1, test6); assert(0); }
+
+    // Error Case: Invalid matching rule
+    char *test7[] = {"apple", "InvalidRule", "Apple"};
+    if (fork() == 0) { count_matches(3, test7); assert(0); }
+
+    printf("All tests passed.\n");
+    return 0;
+}
+```
